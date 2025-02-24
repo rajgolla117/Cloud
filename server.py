@@ -51,7 +51,7 @@ async def classify(inputFile: UploadFile = File(...)):
 
     uploaded_file = future_s3.result()  
     classification = future_db.result() 
-    print(classification)
+    print(image_name + ':' + classification)
     if classification is None:
         raise HTTPException(status_code=404, detail="No classification found")
 
