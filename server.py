@@ -4,10 +4,10 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 import uvicorn
 
-# FastAPI app
+#FastAPI app
 app = FastAPI()
 
-# AWS credentials and resources
+#AWS credentials and resources
 
 REGION = "us-east-1"
 
@@ -17,7 +17,7 @@ AWS_SECRET_KEY = os.getenv('AWS_SECRET_KEY')
 S3_BUCKET_NAME = "1217986809-in-bucket"
 SDB_DOMAIN = "1217986809-simpleDB"
 
-# Initialize AWS clients
+#Initialize AWS clients
 session = boto3.Session(
     aws_access_key_id=AWS_ACCESS_KEY,
     aws_secret_access_key=AWS_SECRET_KEY,
@@ -26,7 +26,7 @@ session = boto3.Session(
 s3 = session.client('s3')
 sdb = session.client('sdb')
 
-# Thread pool for concurrency
+#Thread pool for concurrency
 executor = ThreadPoolExecutor(max_workers=5)
 
 def upload_to_s3(file: UploadFile, file_name: str):
@@ -38,29 +38,24 @@ def query_simpledb(image_name: str):
     """Queries SimpleDB for classification results."""
     query = f"SELECT * FROM `{SDB_DOMAIN}` WHERE ItemName() = '{image_name}'"
     response = sdb.select(SelectExpression=query)
-    print("response: " , response)
     return response['Items'][0]['Attributes'][0]['Value']
 
 @app.post("/")
 async def classify(inputFile: UploadFile = File(...)):
-    #try:
     file_name = inputFile.filename
-    image_name = os.path.splitext(file_name)[0]  # Remove file extension
+    image_name = os.path.splitext(file_name)[0]
 
     # Run S3 upload and SimpleDB query concurrently
     future_s3 = executor.submit(upload_to_s3, inputFile, file_name)
     future_db = executor.submit(query_simpledb, image_name)
 
-    uploaded_file = future_s3.result()  # Wait for upload
-    classification = future_db.result()  # Wait for DB query
+    uploaded_file = future_s3.result()  
+    classification = future_db.result() 
 
     if classification is None:
         raise HTTPException(status_code=404, detail="No classification found")
 
     return f"{image_name}:{classification}"
-
-    #except Exception as e:
-    #    raise HTTPException(status_code=500, detail=str(e))
 
 # Run the FastAPI app with Uvicorn
 if __name__ == "__main__":
